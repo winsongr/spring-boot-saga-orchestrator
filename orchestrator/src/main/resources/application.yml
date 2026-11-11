@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: saga-orchestrator
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/saga}
+    username: ${DATABASE_USER:saga}
+    password: ${DATABASE_PASSWORD:saga}
+    hikari:
+      maximum-pool-size: 20
+      connection-timeout: 3000
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        retries: 5
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 10000
+    consumer:
+      group-id: saga-orchestrator
+      enable-auto-commit: false
+      properties:
+        isolation.level: read_committed
+      max-poll-records: 100
+      auto-offset-reset: earliest
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+saga:
+  outbox:
+    publish-interval-ms: 50
+    batch-size: 100
+    max-attempts: 100
+  timeout-sweeper:
+    interval-ms: 1000
+    batch-size: 100
+  reply-dlq:
+    max-retries: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        saga.duration: true
+        saga.step.duration: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} saga_id=%X{saga_id:-none} - %msg%n"
